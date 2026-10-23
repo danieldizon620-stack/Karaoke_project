@@ -1,29 +1,22 @@
-INTERNET VIDEOKE v2.0 — WINDOWS EXE BUILD PROJECT
+dannyboi's Karaoke v2.2 — Windows EXE Build Project
 
-WHAT IT DOES
-- Windows desktop karaoke video player with dark fullscreen-capable interface
-- Internet YouTube karaoke links, song queue, next/play/pause
-- Search shortcut opens YouTube
-- Phone requests on same private Wi-Fi network
-- Stores queue in %LOCALAPPDATA%\InternetVideoke\videoke.db
-- Windows WebView2 runtime required; available on most Windows 10/11 PCs
-- No PHP or XAMPP needed
+NEW
+- Renamed app and original logo to dannyboi's Karaoke
+- Purple Party, Midnight Blue, Golden Stage, Emerald Lights, or your own background image
+- Searchable starter catalog of 22 popular song titles (not downloadable karaoke tracks)
+- Choose a YouTube karaoke video yourself, copy its URL and add to the song queue
+- Add unlimited further songs to the queue; queue is saved in the local SQLite database
+- Existing Windows player, queue, fullscreen and same-Wi-Fi phone requests retained
 
-IMPORTANT
-- This ZIP is source code and a GitHub Actions build workflow, NOT a compiled EXE.
-- To build: upload the extracted project to the ROOT of a GitHub repository,
-  including .github/workflows/build-windows-exe.yml.
-  GitHub > Actions > Build Windows Videoke EXE > Run workflow.
-  Download the InternetVideoke_Windows_EXE artifact; extract InternetVideoke.exe.
-- The app uses Python/pywebview and a local HTTP server bound to the PC's network
-  interfaces. It is for trusted private networks ONLY. Windows Firewall may prompt.
-  Do NOT port-forward or use it on untrusted/public Wi-Fi.
-- Queue requests are unauthenticated by design on the LAN. Host playback controls
-  require a session token delivered only to localhost.
-- The app does not have microphone scoring or offline licensed karaoke songs.
-- Some YouTube videos disable embedding; internet and user interaction required.
-- YouTube policies and music/public performance licensing are your responsibility.
-- If the YouTube player stays blank, check WebView2 installation and video embed rights.
-- For stronger network isolation, host on a dedicated trusted Wi-Fi or disable
-  the phone request feature by changing 0.0.0.0 to 127.0.0.1 in app.py.
-\nV2.1 THEME UPDATE\n- Original magenta/purple party theme inspired by supplied screenshot (not a copy of Ultrastar assets).\n- Original PartyStar Videoke SVG logo included in web/logo.svg.\n- Six-tile main menu and fullscreen-capable karaoke player.\n- Created by: dannyboi620 footer.\n- Exit button may be blocked by embedded WebView; use window Close (X).\n
+IMPORTANT: The starter catalog is a non-exhaustive set of popular titles, NOT a
+verified latest-chart listing. No audio or video tracks are bundled. Embedding may
+be restricted by YouTube creators. Public performance licensing is your responsibility.
+
+BUILD WINDOWS EXE:
+1. Extract this ZIP.
+2. Upload all project files, including .github/, to a GitHub repository.
+3. Actions > Build Windows Videoke EXE > Run workflow.
+4. Download the resulting DannyboisKaraoke.exe artifact.
+
+The ZIP contains source code, NOT a compiled EXE. It needs Windows 10/11 and
+WebView2 runtime. Keep phone requests on a trusted private Wi-Fi network.

@@ -60,9 +60,9 @@ class Handler(BaseHTTPRequestHandler):
   if path in ('/','/remote'):
    f=ASSETS/('index.html' if path=='/' else 'remote.html')
    self.send(200,f.read_bytes(),'text/html; charset=utf-8');return
-  if path in ('/app.js','/style.css','/menu.js','/logo.svg'):
+  if path in ('/app.js','/style.css','/menu.js','/logo.svg','/customize.js','/starter_songs.json'):
    f=ASSETS/path[1:]
-   self.send(200,f.read_bytes(),'application/javascript' if path.endswith('.js') else ('image/svg+xml' if path.endswith('.svg') else 'text/css'));return
+   self.send(200,f.read_bytes(),'application/javascript' if path.endswith('.js') else ('image/svg+xml' if path.endswith('.svg') else ('application/json' if path.endswith('.json') else 'text/css')));return
   self.send(404,{'error':'Not found'})
  def do_POST(self):
   path=urllib.parse.urlparse(self.path).path

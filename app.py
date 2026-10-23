@@ -10,6 +10,10 @@ DEFAULT_SONGS=BASE/"Songs"
 DEFAULT_SONGS.mkdir(exist_ok=True)
 DB=BASE/"videoke.db"
 TOKEN=secrets.token_urlsafe(32)
+REMOTE_PIN=os.getenv('DANNYBOI_REMOTE_PIN') or ''.join(str(secrets.randbelow(10)) for _ in range(6))
+REMOTE_PORT=8877
+REMOTE_QUEUE_LOCK=threading.Lock()
+
 LIBRARY_EXT={".mp3",".mp4",".m4v",".webm",".cdg",".zip"}
 scan_lock=threading.Lock()
 PORT=8765
@@ -22,6 +26,7 @@ def db():
  c.execute("CREATE TABLE IF NOT EXISTS api_songs (code TEXT PRIMARY KEY, title TEXT NOT NULL, artist TEXT NOT NULL DEFAULT '', language TEXT NOT NULL DEFAULT '', youtube_id TEXT NOT NULL DEFAULT '')")
  c.execute("CREATE TABLE IF NOT EXISTS api_queue (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL, title TEXT NOT NULL, artist TEXT NOT NULL DEFAULT '', youtube_id TEXT NOT NULL DEFAULT '', created INTEGER NOT NULL)")
  c.execute("CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT)")
+ c.execute("CREATE TABLE IF NOT EXISTS remote_queue (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, artist TEXT NOT NULL DEFAULT '', youtube_id TEXT NOT NULL, created INTEGER NOT NULL)")
  c.execute("INSERT OR IGNORE INTO settings VALUES ('song_folder',?)",(str(DEFAULT_SONGS),))
  c.commit()
  return c
@@ -103,6 +108,7 @@ class Handler(BaseHTTPRequestHandler):
   self.send_response(status)
   self.send_header('Content-Type',ctype)
   self.send_header('Cache-Control','no-store')
+  self.send_header('Access-Control-Allow-Origin','null')
   self.send_header('X-Content-Type-Options','nosniff')
   self.send_header('Content-Security-Policy',"default-src 'self' data: blob:; script-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://www.google.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://i.ytimg.com https://*.ytimg.com; media-src 'self' blob:; connect-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.googlevideo.com")
   self.send_header('Content-Length',str(len(raw)))
@@ -116,8 +122,38 @@ class Handler(BaseHTTPRequestHandler):
  def authorized(self):
   # Host-only controls: require localhost + token. Remote phones cannot obtain token.
   return self.client_address[0] in ('127.0.0.1','::1') and hmac.compare_digest(self.headers.get('X-Host-Token',''),TOKEN)
+ def remote_auth(self):
+  return hmac.compare_digest(self.headers.get('X-Remote-PIN',''),REMOTE_PIN)
  def do_GET(self):
   path=urllib.parse.urlparse(self.path).path
+  if path=='/remote/health':
+   self.send(200,{'app':'dannyboi Karaoke','remote':True});return
+  if path=='/api/remote/queue':
+   if not self.authorized():self.send(403,{'error':'Host only'});return
+   with REMOTE_QUEUE_LOCK:
+    with db() as c:rows=c.execute('SELECT id,title,artist,youtube_id FROM remote_queue ORDER BY id').fetchall()
+   self.send(200,{'queue':[dict(zip(('id','title','artist','videoId'),r)) for r in rows]});return
+  if path=='/remote/queue':
+   if not self.remote_auth():self.send(403,{'error':'Wrong pairing PIN'});return
+   with REMOTE_QUEUE_LOCK:
+    with db() as c:rows=c.execute('SELECT id,title,artist,youtube_id FROM remote_queue ORDER BY id').fetchall()
+   self.send(200,{'queue':[dict(zip(('id','title','artist','videoId'),r)) for r in rows]});return
+  if path=='/remote/search':
+   if not self.remote_auth():self.send(403,{'error':'Wrong pairing PIN'});return
+   q=urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get('q',[''])[0][:120]
+   if not q:self.send(400,{'error':'Search text required'});return
+   key=os.getenv('YOUTUBE_DATA_API_KEY','') or os.getenv('YOUTUBE_API_KEY','')
+   if not key:
+    with db() as c:row=c.execute("SELECT v FROM settings WHERE k='youtube_api_key'").fetchone()
+    key=row[0] if row else ''
+   if not key:key=DEFAULT_YOUTUBE_API_KEY
+   if not key:self.send(503,{'error':'Configure YouTube API on Windows first'});return
+   url='https://www.googleapis.com/youtube/v3/search?'+urllib.parse.urlencode({'part':'snippet','type':'video','maxResults':12,'q':q+' karaoke','key':key})
+   try:
+    with urllib.request.urlopen(url,timeout=12) as response:data=json.load(response)
+    self.send(200,{'results':[{'videoId':x.get('id',{}).get('videoId',''),'title':x.get('snippet',{}).get('title',''),'channel':x.get('snippet',{}).get('channelTitle','')} for x in data.get('items',[])]})
+   except Exception:self.send(502,{'error':'YouTube search failed: check API key, quota and internet'})
+   return
   if path=='/api/songs/search':
    if not self.authorized():self.send(403,{'error':'Host only'});return
    q=urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get('q',[''])[0][:120]
@@ -202,7 +238,7 @@ class Handler(BaseHTTPRequestHandler):
    except (BrokenPipeError,ConnectionResetError):pass
    return
   if path=='/api/info':
-   self.send(200,{'host':self.client_address[0] in ('127.0.0.1','::1'),'token':TOKEN if self.client_address[0] in ('127.0.0.1','::1') else '', 'ip':localip()});return
+   self.send(200,{'host':self.client_address[0] in ('127.0.0.1','::1'),'token':TOKEN if self.client_address[0] in ('127.0.0.1','::1') else '', 'ip':localip(),'remote_port':REMOTE_PORT,'remote_pin':REMOTE_PIN if self.client_address[0] in ('127.0.0.1','::1') else ''});return
   if path=='/':
    f=ASSETS/'index.html'
    self.send(200,f.read_bytes(),'text/html; charset=utf-8');return
@@ -214,6 +250,16 @@ class Handler(BaseHTTPRequestHandler):
   path=urllib.parse.urlparse(self.path).path
   d=self.getjson()
   if not isinstance(d,dict):self.send(400,{'error':'Invalid request'});return
+  if path=='/remote/queue':
+   if not self.remote_auth():self.send(403,{'error':'Wrong pairing PIN'});return
+   vid=str(d.get('videoId','')).strip();title=str(d.get('title','')).strip()[:250];artist=str(d.get('artist','')).strip()[:120]
+   if not re.fullmatch(r'[A-Za-z0-9_-]{11}',vid) or not title:self.send(400,{'error':'Invalid song or video ID'});return
+   with REMOTE_QUEUE_LOCK:
+    with db() as c:
+     existing=c.execute('SELECT id FROM remote_queue WHERE youtube_id=?',(vid,)).fetchone()
+     if existing:self.send(200,{'id':existing[0],'already_queued':True});return
+     cur=c.execute('INSERT INTO remote_queue(title,artist,youtube_id,created) VALUES (?,?,?,?)',(title,artist,vid,int(time.time())))
+   self.send(201,{'id':cur.lastrowid,'added':True});return
   if path=='/api/youtube/key':
    if not self.authorized():self.send(403,{'error':'Host only'});return
    key=str(d.get('key','')).strip()
@@ -258,6 +304,20 @@ class Handler(BaseHTTPRequestHandler):
   self.send(404,{'error':'Not found'})
  def do_DELETE(self):
   path=urllib.parse.urlparse(self.path).path
+  if path.startswith('/api/remote/queue/'):
+   if not self.authorized():self.send(403,{'error':'Host only'});return
+   try:id_=int(path.rsplit('/',1)[1])
+   except ValueError:self.send(400,{'error':'Invalid queue ID'});return
+   with REMOTE_QUEUE_LOCK:
+    with db() as c:c.execute('DELETE FROM remote_queue WHERE id=?',(id_,))
+   self.send(200,{'removed':True});return
+  if path.startswith('/remote/queue/'):
+   if not self.remote_auth():self.send(403,{'error':'Wrong pairing PIN'});return
+   try:id_=int(path.rsplit('/',1)[1])
+   except ValueError:self.send(400,{'error':'Invalid queue ID'});return
+   with REMOTE_QUEUE_LOCK:
+    with db() as c:deleted=c.execute('DELETE FROM remote_queue WHERE id=?',(id_,)).rowcount
+   self.send(200,{'removed':bool(deleted)});return
   if not self.authorized():self.send(403,{'error':'Host only'});return
   if path.startswith('/api/queue/'):
    try:id_=int(path.rsplit('/',1)[1])
@@ -279,14 +339,23 @@ class KaraokeAPI:
   return {'opened':True}
 def main():
  global PORT
+ print("Remote control pairing PIN:",REMOTE_PIN,"Windows IP:",localip(),"Port:",REMOTE_PORT)
  for port in (8765,8766,8767):
   try:
    server=ThreadingHTTPServer(('127.0.0.1',port),Handler);PORT=port;break
   except OSError:continue
  else:raise RuntimeError("Ports 8765-8767 are in use.")
  threading.Thread(target=server.serve_forever,daemon=True).start()
+ try:
+  remote_server=ThreadingHTTPServer(('0.0.0.0',REMOTE_PORT),Handler)
+  threading.Thread(target=remote_server.serve_forever,daemon=True).start()
+  print(f'dannyboi remote: http://{localip()}:{REMOTE_PORT}  PIN: {REMOTE_PIN}')
+ except OSError:
+  remote_server=None
+  print('Remote port 8877 unavailable; close other apps using it.')
  url=f'http://127.0.0.1:{PORT}/'
- webview.create_window("dannyboi's Karaoke v3.7",url,width=1300,height=800,min_size=(850,600),js_api=KaraokeAPI())
+ webview.create_window("dannyboi's Karaoke v4.0",url,width=1300,height=800,min_size=(850,600),js_api=KaraokeAPI())
  webview.start(debug=False)
  server.shutdown()
+ if remote_server:remote_server.shutdown()
 if __name__=='__main__':main()

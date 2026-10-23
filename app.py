@@ -135,7 +135,7 @@ class Handler(BaseHTTPRequestHandler):
    self.send(200,{'queue':[dict(zip(('id','code','title','artist','youtube_id'),r)) for r in rows]});return
   if path=='/api/youtube/search':
    if not self.authorized():self.send(403,{'error':'Host only'});return
-   key=os.getenv('YOUTUBE_DATA_API_KEY','')
+   key=os.getenv('YOUTUBE_DATA_API_KEY','') or os.getenv('YOUTUBE_API_KEY','')
    if not key:self.send(503,{'error':'Set YOUTUBE_DATA_API_KEY to enable YouTube Data API searches'});return
    q=urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get('q',[''])[0][:120]
    if not q:self.send(400,{'error':'Missing q'});return

@@ -1,4 +1,4 @@
-name: Build Windows Videoke EXE
+name: Build Windows Installer EXE
 on:
   workflow_dispatch:
   push:
@@ -11,11 +11,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install dependencies
-        run: python -m pip install --upgrade pyinstaller pywebview
-      - name: Build EXE
-        run: pyinstaller --noconfirm --clean --onefile --windowed --name InternetVideoke --add-data "web;web" --collect-all webview app.py
-      - uses: actions/upload-artifact@v4
+      - name: Install Python dependencies
+        run: python -m pip install --upgrade pyinstaller pywebview pillow
+      - name: Build application
+        shell: pwsh
+        run: pyinstaller --noconfirm --clean --onedir --windowed --name DannyboisKaraoke --icon assets/dannyboi.ico --add-data "web;web" --collect-all webview app.py
+      - name: Compile installer
+        shell: pwsh
+        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\setup.iss'
+      - name: Upload installer EXE
+        uses: actions/upload-artifact@v4
         with:
-          name: InternetVideoke_Windows_EXE
-          path: dist/InternetVideoke.exe
+          name: Dannybois_Karaoke_v3.6_Windows_Installer
+          path: installer/output/Dannybois_Karaoke_v3.6_Setup.exe

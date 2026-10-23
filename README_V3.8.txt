@@ -1,0 +1,1 @@
+v3.8: Removed visible Set API Key and Add Video buttons. If YouTube search has no configured API key, an API key dialog appears on first search. API keys are not bundled in source. Enlarged player, replaced + with Add to Queue, retained automatic next-song playback.

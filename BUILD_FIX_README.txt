@@ -1,0 +1,1 @@
+FIX: Replace your repository files, including .github/workflows/build-windows-exe.yml, then commit to main and run Actions > Build Windows Installer EXE. This workflow checks for built files, discovers the installer, and fails loudly if no installer exists. Ensure GitHub uses the NEW workflow rather than an older v3.6 workflow. The ZIP is source code, not a compiled EXE.

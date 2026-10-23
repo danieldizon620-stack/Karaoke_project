@@ -1,3 +1,4 @@
+DEFAULT_YOUTUBE_API_KEY = 'AIzaSyDWBXrmebCs6TMViQOVdvm14KE1zcgTFKA'
 import urllib.request, json, shutil, os, sys, threading, socket, sqlite3, secrets, hmac, time, urllib.parse, webbrowser, mimetypes, re, zipfile, io, hashlib
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
@@ -136,7 +137,7 @@ class Handler(BaseHTTPRequestHandler):
   if path=='/api/youtube/status':
    if not self.authorized():self.send(403,{'error':'Host only'});return
    with db() as c:row=c.execute("SELECT v FROM settings WHERE k='youtube_api_key'").fetchone()
-   self.send(200,{'configured':bool(os.getenv('YOUTUBE_DATA_API_KEY') or os.getenv('YOUTUBE_API_KEY') or (row and row[0]))});return
+   self.send(200,{'configured':bool(os.getenv('YOUTUBE_DATA_API_KEY') or os.getenv('YOUTUBE_API_KEY') or (row and row[0]) or DEFAULT_YOUTUBE_API_KEY)});return
   if path=='/api/youtube/search':
    if not self.authorized():self.send(403,{'error':'Host only'});return
    key=os.getenv('YOUTUBE_DATA_API_KEY','') or os.getenv('YOUTUBE_API_KEY','')
@@ -144,7 +145,8 @@ class Handler(BaseHTTPRequestHandler):
     with db() as c:
      row=c.execute("SELECT v FROM settings WHERE k='youtube_api_key'").fetchone()
      key=row[0] if row else ''
-   if not key:self.send(503,{'error':'Click Set API Key to enable YouTube searches'});return
+   if not key:key=DEFAULT_YOUTUBE_API_KEY
+   if not key:self.send(503,{'error':'YouTube API key is not configured. Enter it when prompted.'});return
    q=urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get('q',[''])[0][:120]
    if not q:self.send(400,{'error':'Missing q'});return
    url='https://www.googleapis.com/youtube/v3/search?'+urllib.parse.urlencode({'part':'snippet','type':'video','maxResults':15,'q':q,'key':key})

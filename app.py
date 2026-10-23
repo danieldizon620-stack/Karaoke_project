@@ -3,7 +3,7 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 import webview
 
-BASE = Path(os.getenv("LOCALAPPDATA", str(Path.home()))) / "InternetVideoke"
+BASE = Path(os.getenv("LOCALAPPDATA", str(Path.home()))) / "DannyboisKaraoke"
 BASE.mkdir(parents=True,exist_ok=True)
 DEFAULT_SONGS=BASE/"Songs"
 DEFAULT_SONGS.mkdir(exist_ok=True)
@@ -103,7 +103,7 @@ class Handler(BaseHTTPRequestHandler):
   self.send_header('Content-Type',ctype)
   self.send_header('Cache-Control','no-store')
   self.send_header('X-Content-Type-Options','nosniff')
-  self.send_header('Content-Security-Policy',"default-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'")
+  self.send_header('Content-Security-Policy',"default-src 'self' data: blob:; script-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://www.google.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://i.ytimg.com; media-src 'self' blob:; connect-src 'self' https://www.youtube.com")
   self.send_header('Content-Length',str(len(raw)))
   self.end_headers();self.wfile.write(raw)
  def getjson(self):
@@ -133,10 +133,18 @@ class Handler(BaseHTTPRequestHandler):
    if not self.authorized():self.send(403,{'error':'Host only'});return
    with db() as c:rows=c.execute('SELECT id,code,title,artist,youtube_id FROM api_queue ORDER BY id').fetchall()
    self.send(200,{'queue':[dict(zip(('id','code','title','artist','youtube_id'),r)) for r in rows]});return
+  if path=='/api/youtube/status':
+   if not self.authorized():self.send(403,{'error':'Host only'});return
+   with db() as c:row=c.execute("SELECT v FROM settings WHERE k='youtube_api_key'").fetchone()
+   self.send(200,{'configured':bool(os.getenv('YOUTUBE_DATA_API_KEY') or os.getenv('YOUTUBE_API_KEY') or (row and row[0]))});return
   if path=='/api/youtube/search':
    if not self.authorized():self.send(403,{'error':'Host only'});return
    key=os.getenv('YOUTUBE_DATA_API_KEY','') or os.getenv('YOUTUBE_API_KEY','')
-   if not key:self.send(503,{'error':'Set YOUTUBE_DATA_API_KEY to enable YouTube Data API searches'});return
+   if not key:
+    with db() as c:
+     row=c.execute("SELECT v FROM settings WHERE k='youtube_api_key'").fetchone()
+     key=row[0] if row else ''
+   if not key:self.send(503,{'error':'Click Set API Key to enable YouTube searches'});return
    q=urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get('q',[''])[0][:120]
    if not q:self.send(400,{'error':'Missing q'});return
    url='https://www.googleapis.com/youtube/v3/search?'+urllib.parse.urlencode({'part':'snippet','type':'video','maxResults':15,'q':q,'key':key})
@@ -204,6 +212,13 @@ class Handler(BaseHTTPRequestHandler):
   path=urllib.parse.urlparse(self.path).path
   d=self.getjson()
   if not isinstance(d,dict):self.send(400,{'error':'Invalid request'});return
+  if path=='/api/youtube/key':
+   if not self.authorized():self.send(403,{'error':'Host only'});return
+   key=str(d.get('key','')).strip()
+   if key and (len(key)>160 or not re.fullmatch(r'[A-Za-z0-9_-]+',key)):
+    self.send(400,{'error':'Invalid API key format'});return
+   with db() as c:c.execute("INSERT OR REPLACE INTO settings(k,v) VALUES ('youtube_api_key',?)",(key,))
+   self.send(200,{'saved':True,'configured':bool(key)});return
   if path=='/api/queue':
    if not self.authorized():self.send(403,{'error':'Host only'});return
    code=str(d.get('code',''))[:120]
@@ -264,12 +279,12 @@ def main():
  global PORT
  for port in (8765,8766,8767):
   try:
-   server=ThreadingHTTPServer(('0.0.0.0',port),Handler);PORT=port;break
+   server=ThreadingHTTPServer(('127.0.0.1',port),Handler);PORT=port;break
   except OSError:continue
  else:raise RuntimeError("Ports 8765-8767 are in use.")
  threading.Thread(target=server.serve_forever,daemon=True).start()
  url=f'http://127.0.0.1:{PORT}/'
- webview.create_window("dannyboi's Karaoke v2.7",url,width=1300,height=800,min_size=(850,600),js_api=KaraokeAPI())
+ webview.create_window("dannyboi's Karaoke v3.1",url,width=1300,height=800,min_size=(850,600),js_api=KaraokeAPI())
  webview.start(debug=False)
  server.shutdown()
 if __name__=='__main__':main()

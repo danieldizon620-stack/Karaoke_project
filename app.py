@@ -204,7 +204,7 @@ class Handler(BaseHTTPRequestHandler):
   if path=='/':
    f=ASSETS/'index.html'
    self.send(200,f.read_bytes(),'text/html; charset=utf-8');return
-  if path in ('/app.js','/style.css','/menu.js','/logo.svg','/customize.js','/library.js','/online.js','/videoke_api.js'):
+  if path in ('/app.js','/style.css','/menu.js','/logo.svg','/customize.js','/library.js','/online.js','/videoke_api.js','/simple.js'):
    f=ASSETS/path[1:]
    self.send(200,f.read_bytes(),'application/javascript' if path.endswith('.js') else ('image/svg+xml' if path.endswith('.svg') else ('application/json' if path.endswith('.json') else 'text/css')));return
   self.send(404,{'error':'Not found'})
@@ -284,7 +284,7 @@ def main():
  else:raise RuntimeError("Ports 8765-8767 are in use.")
  threading.Thread(target=server.serve_forever,daemon=True).start()
  url=f'http://127.0.0.1:{PORT}/'
- webview.create_window("dannyboi's Karaoke v3.1",url,width=1300,height=800,min_size=(850,600),js_api=KaraokeAPI())
+ webview.create_window("dannyboi's Karaoke v3.2",url,width=1300,height=800,min_size=(850,600),js_api=KaraokeAPI())
  webview.start(debug=False)
  server.shutdown()
 if __name__=='__main__':main()

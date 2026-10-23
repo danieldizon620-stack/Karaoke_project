@@ -1,0 +1,1 @@
+v3.2 fixes missing /simple.js route (404), waits for API authentication token, adds visible API key dialog and Add Video YouTube URL action. Build using GitHub Actions workflow. Requires a YouTube Data API v3 key for search; manually added video links do not require the search API. Playback subject to YouTube embed restrictions.

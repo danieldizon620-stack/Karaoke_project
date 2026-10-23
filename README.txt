@@ -22,3 +22,5 @@ ONLINE VIDEOKEPH LINKS
 - Search and open saved song links; links are stored locally in browser localStorage.
 - Requires internet and website availability. Playback stays on VideokePH, not in the offline player.
 - The website does not provide a verified public song catalog API; no automatic song scraping is attempted.
+
+VERSION 2.6: VideokePH official search/player opens in a separate pywebview window via the Search & Sing Now button. No database scraping or unauthorized downloads. Internet and site availability required. The site may use YouTube internally. Offline songs remain supported. Original dannyboi logo retained.

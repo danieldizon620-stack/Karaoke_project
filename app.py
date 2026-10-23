@@ -166,7 +166,7 @@ class Handler(BaseHTTPRequestHandler):
   if path=='/':
    f=ASSETS/'index.html'
    self.send(200,f.read_bytes(),'text/html; charset=utf-8');return
-  if path in ('/app.js','/style.css','/menu.js','/logo.svg','/customize.js','/library.js'):
+  if path in ('/app.js','/style.css','/menu.js','/logo.svg','/customize.js','/library.js','/online.js'):
    f=ASSETS/path[1:]
    self.send(200,f.read_bytes(),'application/javascript' if path.endswith('.js') else ('image/svg+xml' if path.endswith('.svg') else ('application/json' if path.endswith('.json') else 'text/css')));return
   self.send(404,{'error':'Not found'})
@@ -191,6 +191,14 @@ def localip():
  try:
   s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM);s.connect(('8.8.8.8',80));ip=s.getsockname()[0];s.close();return ip
  except OSError:return '127.0.0.1'
+class KaraokeAPI:
+ def open_videokeph(self, url='https://videokeph.com/app/'):
+  # Keep navigation confined to the official service, not arbitrary user URLs.
+  parsed=urllib.parse.urlparse(url)
+  if parsed.scheme!='https' or parsed.hostname not in ('videokeph.com','www.videokeph.com'):
+   return {'error':'Invalid VideokePH URL'}
+  webview.create_window('dannyboi Karaoke | VideokePH Online Player',url,width=1180,height=780,min_size=(800,550))
+  return {'opened':True}
 def main():
  global PORT
  for port in (8765,8766,8767):
@@ -200,7 +208,7 @@ def main():
  else:raise RuntimeError("Ports 8765-8767 are in use.")
  threading.Thread(target=server.serve_forever,daemon=True).start()
  url=f'http://127.0.0.1:{PORT}/'
- webview.create_window("dannyboi's Karaoke - Offline Windows",url,width=1300,height=800,min_size=(850,600))
+ webview.create_window("dannyboi's Karaoke v2.6",url,width=1300,height=800,min_size=(850,600),js_api=KaraokeAPI())
  webview.start(debug=False)
  server.shutdown()
 if __name__=='__main__':main()

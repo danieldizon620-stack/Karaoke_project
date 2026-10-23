@@ -42,3 +42,12 @@ section.right .screen{min-height:0;width:100%;aspect-ratio:16/9}
 #score-song{font-size:19px;font-weight:700;max-width:80vw}
 #score-continue{background:#ed168e;font-size:18px}
 @media(max-width:1050px){main{display:flex;flex-direction:column}section.right .screen{min-height:0}}
+
+/* v4.3: theater layout: no search sidebar, maximize player */
+main{display:block!important;width:100%;max-width:none!important;padding:8px!important;margin:0!important}
+section.left{display:none!important}
+section.right{width:100%!important;max-width:none!important;margin:0!important;padding:10px!important;min-height:0!important}
+section.right .screen{width:100%!important;aspect-ratio:16/9!important;min-height:0!important;max-height:none!important}
+#youtube-player,#youtube-player iframe{width:100%!important;height:100%!important}
+.player-heading{margin-bottom:4px}
+@media(max-width:1050px){main{display:block!important}}

@@ -354,7 +354,7 @@ def main():
   remote_server=None
   print('Remote port 8877 unavailable; close other apps using it.')
  url=f'http://127.0.0.1:{PORT}/'
- webview.create_window("dannyboi's Karaoke v4.2",url,width=1300,height=800,min_size=(850,600),js_api=KaraokeAPI())
+ webview.create_window("dannyboi's Karaoke v4.3",url,width=1300,height=800,min_size=(850,600),js_api=KaraokeAPI())
  webview.start(debug=False)
  server.shutdown()
  if remote_server:remote_server.shutdown()

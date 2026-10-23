@@ -26,3 +26,4 @@ IMPORTANT
 - If the YouTube player stays blank, check WebView2 installation and video embed rights.
 - For stronger network isolation, host on a dedicated trusted Wi-Fi or disable
   the phone request feature by changing 0.0.0.0 to 127.0.0.1 in app.py.
+\nV2.1 THEME UPDATE\n- Original magenta/purple party theme inspired by supplied screenshot (not a copy of Ultrastar assets).\n- Original PartyStar Videoke SVG logo included in web/logo.svg.\n- Six-tile main menu and fullscreen-capable karaoke player.\n- Created by: dannyboi620 footer.\n- Exit button may be blocked by embedded WebView; use window Close (X).\n

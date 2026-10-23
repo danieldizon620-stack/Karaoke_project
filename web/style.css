@@ -25,3 +25,20 @@ section.right .screen{width:100%;aspect-ratio:16/9;min-height:420px}
 .song button.add-queue{background:#364067;border:1px solid #8b72e5;white-space:nowrap;padding:9px 11px;font-size:12px}
 .song button.add-queue:hover{background:#6948a9}
 @media(max-width:1050px){main{display:flex;flex-direction:column}section.right .screen{min-height:0}}
+
+/* v4.2: larger stage, search-as-you-type, and completion score */
+main{grid-template-columns:minmax(260px,24%) minmax(620px,76%);max-width:none;padding:12px 18px;gap:12px}
+section.left{padding:14px}section.right{padding:14px}
+section.right .screen{min-height:0;width:100%;aspect-ratio:16/9}
+.player-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.player-heading h2{margin:0 0 10px}
+#fullscreen-player{padding:8px 13px;margin-bottom:8px;background:#a524b4}
+.screen:fullscreen{width:100vw;height:100vh;aspect-ratio:auto;border-radius:0}
+.score-panel[hidden]{display:none!important}
+.score-panel{position:fixed;inset:0;z-index:110;background:#08071cf0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px}
+.score-label{color:#ffdb78;font-weight:800;letter-spacing:3px;font-size:22px}
+.score-number{font-size:clamp(65px,13vw,180px);font-weight:900;color:#ff43c2;text-shadow:0 0 32px #a721ff}
+.score-subtitle{font-size:15px;color:#d4c7e7}
+#score-song{font-size:19px;font-weight:700;max-width:80vw}
+#score-continue{background:#ed168e;font-size:18px}
+@media(max-width:1050px){main{display:flex;flex-direction:column}section.right .screen{min-height:0}}

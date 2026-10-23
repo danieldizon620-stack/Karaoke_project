@@ -1,21 +1,21 @@
 #define MyAppName "dannyboi's Karaoke"
-#define MyAppVersion "3.5"
+#define MyAppVersion "3.6"
 #define MyAppExeName "DannyboisKaraoke.exe"
 [Setup]
 AppId={{D1C8C27E-5AB4-48E2-AEA5-1A12F7D52B36}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher=dannyboi
-DefaultDirName={autopf}\Dannybois Karaoke
+DefaultDirName={autopf64}\Dannybois Karaoke
 DefaultGroupName={#MyAppName}
 OutputDir=output
-OutputBaseFilename=Dannybois_Karaoke_v3.5_Setup
+OutputBaseFilename=Dannybois_Karaoke_v3.6_Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 SetupIconFile=..\assets\dannyboi.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
-PrivilegesRequired=lowest
+PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 [Files]
 Source: "..\dist\DannyboisKaraoke\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

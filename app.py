@@ -284,7 +284,7 @@ def main():
  else:raise RuntimeError("Ports 8765-8767 are in use.")
  threading.Thread(target=server.serve_forever,daemon=True).start()
  url=f'http://127.0.0.1:{PORT}/'
- webview.create_window("dannyboi's Karaoke v3.4",url,width=1300,height=800,min_size=(850,600),js_api=KaraokeAPI())
+ webview.create_window("dannyboi's Karaoke v3.6",url,width=1300,height=800,min_size=(850,600),js_api=KaraokeAPI())
  webview.start(debug=False)
  server.shutdown()
 if __name__=='__main__':main()

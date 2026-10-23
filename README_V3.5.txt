@@ -1,0 +1,1 @@
+v3.5: Fixed singing queue: centered empty state, queue count, duplicate prevention, saved queue across restarts, play removes item from waiting queue, next plays and dequeues, compact layout and smaller YouTube notice. Rebuild Windows EXE using GitHub Actions.

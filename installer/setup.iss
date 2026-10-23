@@ -1,5 +1,5 @@
 #define MyAppName "dannyboi's Karaoke"
-#define MyAppVersion "3.4"
+#define MyAppVersion "3.5"
 #define MyAppExeName "DannyboisKaraoke.exe"
 [Setup]
 AppId={{D1C8C27E-5AB4-48E2-AEA5-1A12F7D52B36}
@@ -9,7 +9,7 @@ AppPublisher=dannyboi
 DefaultDirName={autopf}\Dannybois Karaoke
 DefaultGroupName={#MyAppName}
 OutputDir=output
-OutputBaseFilename=Dannybois_Karaoke_v3.4_Setup
+OutputBaseFilename=Dannybois_Karaoke_v3.5_Setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern

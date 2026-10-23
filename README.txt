@@ -1,6 +1,6 @@
-dannyboi's Karaoke v2.4 — OFFLINE Windows source
+dannyboi's Karaoke v2.5 — OFFLINE + VIDEOKEPH LINKS Windows source
 
-No YouTube integration, external video search, or streaming.
+No YouTube integration. Optional VideokePH links open the website in the default browser; no scraping, streaming capture, or downloading.
 
 FEATURES
 - Choose Songs Folder and automatic recursive scanning every 60 seconds
@@ -16,3 +16,9 @@ For MP3+G import, select BOTH matching .mp3 and .cdg files.
 Only media formats supported by the installed Windows WebView codecs will play.
 This is source code, not a precompiled Windows executable.
 Build using .github/workflows/build-windows-exe.yml.
+
+ONLINE VIDEOKEPH LINKS
+- Click Browse VideokePH, copy the URL of a song page, and save it with a title/artist.
+- Search and open saved song links; links are stored locally in browser localStorage.
+- Requires internet and website availability. Playback stays on VideokePH, not in the offline player.
+- The website does not provide a verified public song catalog API; no automatic song scraping is attempted.

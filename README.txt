@@ -20,3 +20,14 @@ BUILD WINDOWS EXE:
 
 The ZIP contains source code, NOT a compiled EXE. It needs Windows 10/11 and
 WebView2 runtime. Keep phone requests on a trusted private Wi-Fi network.
+
+
+VERSION 2.3 — LOCAL LIBRARY
+- Choose Songs Folder from the Offline Song Library panel; recursive scan on selection, startup, and every 60 seconds.
+- Search by title, artist, category (folder name), or five-digit song number.
+- MP3+G (.mp3 + matching .cdg) and MP4/M4V/WebM local playback; no internet required for local tracks.
+- ZIP MP3+G archives are indexed but must be extracted before playback.
+- Existing YouTube requests, purple theme, logo and SQLite queue retained.
+- Imported library metadata stored in LOCALAPPDATA/InternetVideoke/videoke.db. Actual music files stay in their original folders.
+- The CDG player handles common tile, palette and memory instructions; uncommon CDG effects may differ from dedicated CDG players.
+- Songs must be legally obtained. No copyrighted recordings are included.

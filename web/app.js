@@ -30,6 +30,7 @@ async function refresh(){
  }catch(e){$('message').textContent=e.message;return []}
 }
 function playSong(s){
+ if(window.stopLocalPlayback)window.stopLocalPlayback();
  activeId=s.id;$('now').textContent='Now playing: '+s.title+(s.singer?' — '+s.singer:'');
  if(ready&&player){player.loadVideoById(s.video)}else{window.open('https://www.youtube.com/watch?v='+encodeURIComponent(s.video),'_blank')}
 }

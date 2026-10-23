@@ -23,24 +23,5 @@
   reader.readAsDataURL(file);
  };
  reset.onclick=()=>{try{localStorage.removeItem(key);localStorage.removeItem(photoKey)}catch(e){}apply('purple');upload.value=''};
- let songs=[];
- function render(){
-  list.replaceChildren();
-  const q=search.value.trim().toLowerCase();
-  const filtered=songs.filter(s=>(s.title+' '+s.artist).toLowerCase().includes(q)).slice(0,40);
-  for(const song of filtered){
-   const row=document.createElement('div');row.className='catalog-song';
-   const name=document.createElement('span');name.textContent=song.title+' — '+song.artist;
-   const button=document.createElement('button');button.type='button';button.textContent='Find karaoke';
-   button.onclick=()=>{
-    const title=document.querySelector('#add input[name=title]');
-    if(title)title.value=song.title+' - '+song.artist;
-    window.open('https://www.youtube.com/results?search_query='+encodeURIComponent(song.title+' '+song.artist+' karaoke lyrics'),'_blank','noopener');
-   };
-   row.append(name,button);list.append(row);
-  }
-  if(!filtered.length)list.textContent='No matches. You can still add any song using its YouTube link.';
- }
- fetch('/starter_songs.json').then(r=>r.json()).then(data=>{songs=data;render()}).catch(()=>{list.textContent='Catalog unavailable; manual song entry still works.'});
- search.oninput=render;
+
 })();

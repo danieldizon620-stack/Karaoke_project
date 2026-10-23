@@ -1,10 +1,12 @@
-import json, os, sys, threading, socket, sqlite3, secrets, hmac, time, urllib.parse, webbrowser, mimetypes, re, zipfile, io, hashlib
+import json, shutil, os, sys, threading, socket, sqlite3, secrets, hmac, time, urllib.parse, webbrowser, mimetypes, re, zipfile, io, hashlib
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 import webview
 
 BASE = Path(os.getenv("LOCALAPPDATA", str(Path.home()))) / "InternetVideoke"
 BASE.mkdir(parents=True,exist_ok=True)
+DEFAULT_SONGS=BASE/"Songs"
+DEFAULT_SONGS.mkdir(exist_ok=True)
 DB=BASE/"videoke.db"
 TOKEN=secrets.token_urlsafe(32)
 LIBRARY_EXT={".mp3",".mp4",".m4v",".webm",".cdg",".zip"}
@@ -17,21 +19,10 @@ def db():
  c.execute("CREATE TABLE IF NOT EXISTS songs (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, video TEXT NOT NULL, singer TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'queued', created INTEGER NOT NULL)")
  c.execute("CREATE TABLE IF NOT EXISTS library (id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT NOT NULL UNIQUE, title TEXT NOT NULL, artist TEXT NOT NULL DEFAULT '', category TEXT NOT NULL DEFAULT 'Other', kind TEXT NOT NULL, mtime REAL NOT NULL, size INTEGER NOT NULL)")
  c.execute("CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT)")
- c.execute("INSERT OR IGNORE INTO settings VALUES ('pin','123456')")
+ c.execute("INSERT OR IGNORE INTO settings VALUES ('song_folder',?)",(str(DEFAULT_SONGS),))
  c.commit()
  return c
 db().close()
-def vid(url):
- url=url.strip()
- u=urllib.parse.urlparse(url)
- host=(u.hostname or '').lower()
- v=''
- if host in ('youtube.com','www.youtube.com','m.youtube.com','music.youtube.com'):
-  if u.path=='/watch':v=urllib.parse.parse_qs(u.query).get('v',[''])[0]
-  elif u.path.startswith('/shorts/') or u.path.startswith('/embed/'):v=u.path.split('/')[2]
- elif host in ('youtu.be','www.youtu.be'):v=u.path.strip('/').split('/')[0]
- if len(v)==11 and all(c.isalnum() or c in '-_' for c in v):return v
- return None
 def scan_library():
  with scan_lock:
   with db() as c:
@@ -75,6 +66,30 @@ def choose_folder():
   root.destroy()
   return folder
  except Exception:return ''
+def import_songs():
+ try:
+  import tkinter as tk
+  from tkinter import filedialog
+  root=tk.Tk();root.withdraw();root.attributes('-topmost',True)
+  paths=filedialog.askopenfilenames(title='Import legally obtained karaoke songs',filetypes=[('Karaoke songs','*.mp3 *.cdg *.mp4 *.m4v *.webm *.zip'),('All files','*.*')])
+  root.destroy()
+  if not paths:return {'cancelled':True}
+  with db() as c:
+   row=c.execute("SELECT v FROM settings WHERE k='song_folder'").fetchone()
+  folder=Path(row[0]) if row else DEFAULT_SONGS
+  folder.mkdir(parents=True,exist_ok=True)
+  added=0;skipped=0
+  for source in paths:
+   src=Path(source)
+   if src.suffix.lower() not in LIBRARY_EXT or not src.is_file():skipped+=1;continue
+   dst=folder/src.name
+   try:
+    if src.resolve()==dst.resolve():skipped+=1;continue
+    if dst.exists():skipped+=1;continue
+    shutil.copy2(src,dst);added+=1
+   except OSError:skipped+=1
+  result=scan_library();result.update({'imported':added,'skipped':skipped});return result
+ except Exception as e:return {'error':str(e)}
 def library_path(id_):
  with db() as c:row=c.execute('SELECT path,kind FROM library WHERE id=?',(id_,)).fetchone()
  return row
@@ -86,7 +101,7 @@ class Handler(BaseHTTPRequestHandler):
   self.send_header('Content-Type',ctype)
   self.send_header('Cache-Control','no-store')
   self.send_header('X-Content-Type-Options','nosniff')
-  self.send_header('Content-Security-Policy',"default-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://i.ytimg.com; script-src 'self' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline'; img-src 'self' https://i.ytimg.com data:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; connect-src 'self' https://www.youtube.com")
+  self.send_header('Content-Security-Policy',"default-src 'self' data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'")
   self.send_header('Content-Length',str(len(raw)))
   self.end_headers();self.wfile.write(raw)
  def getjson(self):
@@ -105,7 +120,7 @@ class Handler(BaseHTTPRequestHandler):
    q=urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get('q',[''])[0][:120]
    with db() as c:
     if q:
-     like='%'+q.replace('%','\%').replace('_','\_')+'%'
+     like='%'+q.replace('%',r'\%').replace('_',r'\_')+'%'
      rows=c.execute("SELECT id,title,artist,category,kind FROM library WHERE title LIKE ? ESCAPE '\\' OR artist LIKE ? ESCAPE '\\' OR category LIKE ? ESCAPE '\\' OR printf('%05d',id) LIKE ? ORDER BY title LIMIT 400",(like,like,like,like)).fetchall()
     else:rows=c.execute('SELECT id,title,artist,category,kind FROM library ORDER BY title LIMIT 400').fetchall()
    self.send(200,[dict(zip(['id','title','artist','category','kind'],r)) for r in rows]);return
@@ -146,16 +161,12 @@ class Handler(BaseHTTPRequestHandler):
       self.wfile.write(chunk);left-=len(chunk)
    except (BrokenPipeError,ConnectionResetError):pass
    return
-  if path=='/api/list':
-   with db() as c:
-    rows=c.execute("SELECT id,title,video,singer,status FROM songs WHERE status!='done' ORDER BY id").fetchall()
-   self.send(200,[dict(zip(['id','title','video','singer','status'],r)) for r in rows]);return
   if path=='/api/info':
    self.send(200,{'host':self.client_address[0] in ('127.0.0.1','::1'),'token':TOKEN if self.client_address[0] in ('127.0.0.1','::1') else '', 'ip':localip()});return
-  if path in ('/','/remote'):
-   f=ASSETS/('index.html' if path=='/' else 'remote.html')
+  if path=='/':
+   f=ASSETS/'index.html'
    self.send(200,f.read_bytes(),'text/html; charset=utf-8');return
-  if path in ('/app.js','/style.css','/menu.js','/logo.svg','/customize.js','/starter_songs.json','/library.js'):
+  if path in ('/app.js','/style.css','/menu.js','/logo.svg','/customize.js','/library.js'):
    f=ASSETS/path[1:]
    self.send(200,f.read_bytes(),'application/javascript' if path.endswith('.js') else ('image/svg+xml' if path.endswith('.svg') else ('application/json' if path.endswith('.json') else 'text/css')));return
   self.send(404,{'error':'Not found'})
@@ -169,25 +180,12 @@ class Handler(BaseHTTPRequestHandler):
    if not folder:self.send(200,{'cancelled':True});return
    with db() as c:c.execute("INSERT OR REPLACE INTO settings(k,v) VALUES ('song_folder',?)",(folder,))
    self.send(200,scan_library());return
+  if path=='/api/import_songs':
+   if not self.authorized():self.send(403,{'error':'Host only'});return
+   self.send(200,import_songs());return
   if path=='/api/scan':
    if not self.authorized():self.send(403,{'error':'Host only'});return
    self.send(200,scan_library());return
-  if path=='/api/add':
-   title=str(d.get('title','')).strip()[:160];v=vid(str(d.get('video','')))
-   singer=str(d.get('singer','')).strip()[:80]
-   if not title or not v:self.send(400,{'error':'Enter title and valid YouTube link'});return
-   with db() as c:c.execute("INSERT INTO songs(title,video,singer,status,created) VALUES (?,?,?,'queued',?)",(title,v,singer,int(time.time())))
-   self.send(200,{'ok':True});return
-  if path=='/api/done':
-   if not self.authorized():self.send(403,{'error':'Host only'});return
-   try:songid=int(d.get('id'))
-   except (ValueError,TypeError):self.send(400,{'error':'Invalid ID'});return
-   with db() as c:c.execute("UPDATE songs SET status='done' WHERE id=?",(songid,))
-   self.send(200,{'ok':True});return
-  if path=='/api/clear':
-   if not self.authorized():self.send(403,{'error':'Host only'});return
-   with db() as c:c.execute("UPDATE songs SET status='done' WHERE status!='done'")
-   self.send(200,{'ok':True});return
   self.send(404,{'error':'Not found'})
 def localip():
  try:
@@ -202,7 +200,7 @@ def main():
  else:raise RuntimeError("Ports 8765-8767 are in use.")
  threading.Thread(target=server.serve_forever,daemon=True).start()
  url=f'http://127.0.0.1:{PORT}/'
- webview.create_window('Internet Videoke - Windows',url,width=1300,height=800,min_size=(850,600))
+ webview.create_window("dannyboi's Karaoke - Offline Windows",url,width=1300,height=800,min_size=(850,600))
  webview.start(debug=False)
  server.shutdown()
 if __name__=='__main__':main()

@@ -1,33 +1,18 @@
-dannyboi's Karaoke v2.2 — Windows EXE Build Project
+dannyboi's Karaoke v2.4 — OFFLINE Windows source
 
-NEW
-- Renamed app and original logo to dannyboi's Karaoke
-- Purple Party, Midnight Blue, Golden Stage, Emerald Lights, or your own background image
-- Searchable starter catalog of 22 popular song titles (not downloadable karaoke tracks)
-- Choose a YouTube karaoke video yourself, copy its URL and add to the song queue
-- Add unlimited further songs to the queue; queue is saved in the local SQLite database
-- Existing Windows player, queue, fullscreen and same-Wi-Fi phone requests retained
+No YouTube integration, external video search, or streaming.
 
-IMPORTANT: The starter catalog is a non-exhaustive set of popular titles, NOT a
-verified latest-chart listing. No audio or video tracks are bundled. Embedding may
-be restricted by YouTube creators. Public performance licensing is your responsibility.
+FEATURES
+- Choose Songs Folder and automatic recursive scanning every 60 seconds
+- Import Karaoke Songs: opens a Windows file picker, copies selected files into your chosen folder
+- Search by title, artist, category, or song number
+- Play MP3+G (.mp3 + matching .cdg), MP4, M4V, WebM; queue songs
+- Files must be legally obtained; no copyrighted recordings are bundled
+- ZIP MP3+G archives are indexed but must be extracted before playback
+- Suggested folders: Songs/Latest 2026 Hits, Songs/OPM, Songs/English, Songs/Duets
 
-BUILD WINDOWS EXE:
-1. Extract this ZIP.
-2. Upload all project files, including .github/, to a GitHub repository.
-3. Actions > Build Windows Videoke EXE > Run workflow.
-4. Download the resulting DannyboisKaraoke.exe artifact.
-
-The ZIP contains source code, NOT a compiled EXE. It needs Windows 10/11 and
-WebView2 runtime. Keep phone requests on a trusted private Wi-Fi network.
-
-
-VERSION 2.3 — LOCAL LIBRARY
-- Choose Songs Folder from the Offline Song Library panel; recursive scan on selection, startup, and every 60 seconds.
-- Search by title, artist, category (folder name), or five-digit song number.
-- MP3+G (.mp3 + matching .cdg) and MP4/M4V/WebM local playback; no internet required for local tracks.
-- ZIP MP3+G archives are indexed but must be extracted before playback.
-- Existing YouTube requests, purple theme, logo and SQLite queue retained.
-- Imported library metadata stored in LOCALAPPDATA/InternetVideoke/videoke.db. Actual music files stay in their original folders.
-- The CDG player handles common tile, palette and memory instructions; uncommon CDG effects may differ from dedicated CDG players.
-- Songs must be legally obtained. No copyrighted recordings are included.
+IMPORTANT
+For MP3+G import, select BOTH matching .mp3 and .cdg files.
+Only media formats supported by the installed Windows WebView codecs will play.
+This is source code, not a precompiled Windows executable.
+Build using .github/workflows/build-windows-exe.yml.

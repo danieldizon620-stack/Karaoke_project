@@ -1,31 +1,38 @@
 let librarySongs=[],scanBusy=false,localActive=false;
+window.librarySongs=librarySongs;let localQueue=[];
 const libEl=id=>document.getElementById(id);
 async function loadLibrary(){
  const q=libEl('library-search').value.trim();
  try{const [songs,status]=await Promise.all([fetch('/api/library?q='+encodeURIComponent(q)).then(r=>r.json()),fetch('/api/library_status').then(r=>r.json())]);
- librarySongs=songs;libEl('library-status').textContent=(status.folder||'No folder selected')+' • '+status.count+' songs';
+ librarySongs=songs;window.librarySongs=songs;libEl('library-status').textContent=(status.folder||'No folder selected')+' • '+status.count+' songs';
  const area=libEl('library-results');area.replaceChildren();
  for(const s of songs){const item=document.createElement('div');item.className='catalog-song';
  const label=document.createElement('span');label.textContent=String(s.id).padStart(5,'0')+' · '+s.title+(s.artist?' — '+s.artist:'')+' ['+s.kind.toUpperCase()+']';item.append(label);
- const b=document.createElement('button');b.textContent='▶ Play';b.onclick=()=>playLocal(s);item.append(b);area.append(item)}
+ const b=document.createElement('button');b.textContent='▶ Play';b.onclick=()=>playLocal(s);item.append(b);const q=document.createElement('button');q.textContent='＋ Queue';q.onclick=()=>{localQueue.push(s);renderLocalQueue()};item.append(q);area.append(item)}
  if(!songs.length)area.textContent='No matching songs';
  }catch(e){libEl('library-status').textContent='Library error: '+e.message}
 }
 async function scan(){if(scanBusy)return;scanBusy=true;libEl('library-status').textContent='Scanning folders…';try{const r=await fetch('/api/scan',{method:'POST',headers:{'X-Host-Token':hostToken,'Content-Type':'application/json'},body:'{}'}).then(r=>r.json());if(r.error)throw Error(r.error);await loadLibrary()}catch(e){libEl('library-status').textContent=e.message}finally{scanBusy=false}}
 libEl('choose-folder').onclick=async()=>{libEl('library-status').textContent='Choose a folder on your computer…';try{const r=await fetch('/api/choose_folder',{method:'POST',headers:{'X-Host-Token':hostToken,'Content-Type':'application/json'},body:'{}'}).then(r=>r.json());if(r.error)throw Error(r.error);await loadLibrary()}catch(e){libEl('library-status').textContent=e.message}};
 libEl('scan-folder').onclick=scan;
+libEl('import-songs').onclick=async()=>{libEl('library-status').textContent='Select song files on this computer…';try{const r=await fetch('/api/import_songs',{method:'POST',headers:{'X-Host-Token':hostToken,'Content-Type':'application/json'},body:'{}'}).then(r=>r.json());if(r.error)throw Error(r.error);await loadLibrary();libEl('library-status').textContent=`Imported ${r.imported||0} files; skipped ${r.skipped||0}. Library: ${r.count||0} songs.`}catch(e){libEl('library-status').textContent=e.message}};
+function renderLocalQueue(){const area=libEl('queue');area.replaceChildren();for(const [i,s] of localQueue.entries()){const row=document.createElement('div');row.className='song';row.textContent=`${i+1}. ${s.title} — ${s.artist||'Unknown'}`;const b=document.createElement('button');b.textContent='▶';b.onclick=()=>{localQueue.splice(i,1);renderLocalQueue();playLocal(s)};row.append(b);area.append(row)}if(!localQueue.length)area.textContent='No songs queued';}
+window.playNextLocal=()=>{const s=localQueue.shift();renderLocalQueue();if(s)playLocal(s);else libEl('now').textContent='Queue finished'};
+window.clearLocalQueue=()=>{localQueue=[];renderLocalQueue()};
+
 let searchDebounce;libEl('library-search').oninput=()=>{clearTimeout(searchDebounce);searchDebounce=setTimeout(loadLibrary,180)};
 const localVideo=libEl('local-video'),localAudio=libEl('local-audio'),cdg=libEl('cdg-canvas');
-window.stopLocalPlayback=()=>{localVideo.pause();localAudio.pause();localVideo.removeAttribute('src');localAudio.removeAttribute('src');localVideo.load();localAudio.load();libEl('local-player').hidden=true;libEl('ytplayer').style.display='';localActive=false;};
+window.stopLocalPlayback=()=>{localVideo.pause();localAudio.pause();localVideo.removeAttribute('src');localAudio.removeAttribute('src');localVideo.load();localAudio.load();libEl('local-player').hidden=true;localActive=false;};
 async function playLocal(s){
  if(s.kind==='zip'){libEl('library-status').textContent='Extract ZIP MP3 and CDG files into your Songs folder to play.';return}
  if(window.stopLocalPlayback)window.stopLocalPlayback();
- if(ready&&player)player.stopVideo();activeId=null;localActive=true;
- libEl('ytplayer').style.display='none';libEl('local-player').hidden=false;
+ activeId=null;localActive=true;
+ libEl('local-player').hidden=false;
  const media='/api/media/'+s.id;
  localVideo.hidden=s.kind==='mp3';localAudio.hidden=s.kind!=='mp3';cdg.hidden=s.kind!=='mp3';
  const el=s.kind==='mp3'?localAudio:localVideo;el.src=media;el.play().catch(()=>{});
  libEl('now').textContent='Now playing: '+s.title+(s.artist?' — '+s.artist:'');
+ el.onended=()=>window.playNextLocal?.();
  if(s.kind==='mp3'){
   try{const response=await fetch(media+'?lyrics=1');if(!response.ok)throw Error('CDG not found');const data=new Uint8Array(await response.arrayBuffer());startCdg(data,el)}catch(e){libEl('library-status').textContent='Lyrics unavailable: '+e.message}
  }
@@ -49,5 +56,5 @@ function startCdg(data,audio){
   requestAnimationFrame(render);
  };requestAnimationFrame(render)
 }
-setTimeout(()=>{loadLibrary();scan()},900);
+setTimeout(()=>{loadLibrary();scan();renderLocalQueue()},900);
 setInterval(()=>{if(!scanBusy)scan()},60000);

@@ -11,3 +11,5 @@
 .queue-remove{background:#283149;border-color:#505577;}
 .queue-empty{padding:16px 8px;color:#a7a5c9;font-size:13px;}
 @media(max-width:540px){.queue-row{grid-template-columns:23px minmax(0,1fr) auto auto;gap:5px}.queue-row button{padding:7px}}
+
+.online-help{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;border:1px solid #513b75;border-radius:9px;margin:10px 0;color:#cfc8e7;font-size:12px}.online-help[hidden]{display:none}.online-help button{padding:7px 11px;background:#6935a6;white-space:nowrap}.brand img{display:block;min-width:66px}

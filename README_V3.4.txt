@@ -1,0 +1,1 @@
+v3.4 fixes missing logo image route (served as image/png), improves YouTube iframe URL, adds an Open on YouTube fallback for embedding-restricted videos, and updates displayed version. YouTube search requires a valid Google YouTube Data API v3 key and internet. Source build only; not a compiled EXE.

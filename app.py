@@ -103,7 +103,7 @@ class Handler(BaseHTTPRequestHandler):
   self.send_header('Content-Type',ctype)
   self.send_header('Cache-Control','no-store')
   self.send_header('X-Content-Type-Options','nosniff')
-  self.send_header('Content-Security-Policy',"default-src 'self' data: blob:; script-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://www.google.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://i.ytimg.com; media-src 'self' blob:; connect-src 'self' https://www.youtube.com")
+  self.send_header('Content-Security-Policy',"default-src 'self' data: blob:; script-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://www.google.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://i.ytimg.com https://*.ytimg.com; media-src 'self' blob:; connect-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://*.googlevideo.com")
   self.send_header('Content-Length',str(len(raw)))
   self.end_headers();self.wfile.write(raw)
  def getjson(self):
@@ -204,9 +204,9 @@ class Handler(BaseHTTPRequestHandler):
   if path=='/':
    f=ASSETS/'index.html'
    self.send(200,f.read_bytes(),'text/html; charset=utf-8');return
-  if path in ('/app.js','/style.css','/menu.js','/logo.svg','/customize.js','/library.js','/online.js','/videoke_api.js','/simple.js'):
+  if path in ('/app.js','/style.css','/menu.js','/logo.svg','/customize.js','/library.js','/online.js','/videoke_api.js','/simple.js','/dannyboi_logo.png'):
    f=ASSETS/path[1:]
-   self.send(200,f.read_bytes(),'application/javascript' if path.endswith('.js') else ('image/svg+xml' if path.endswith('.svg') else ('application/json' if path.endswith('.json') else 'text/css')));return
+   self.send(200,f.read_bytes(),'image/png' if path.endswith('.png') else ('application/javascript' if path.endswith('.js') else ('image/svg+xml' if path.endswith('.svg') else 'text/css')));return
   self.send(404,{'error':'Not found'})
  def do_POST(self):
   path=urllib.parse.urlparse(self.path).path
@@ -284,7 +284,7 @@ def main():
  else:raise RuntimeError("Ports 8765-8767 are in use.")
  threading.Thread(target=server.serve_forever,daemon=True).start()
  url=f'http://127.0.0.1:{PORT}/'
- webview.create_window("dannyboi's Karaoke v3.3",url,width=1300,height=800,min_size=(850,600),js_api=KaraokeAPI())
+ webview.create_window("dannyboi's Karaoke v3.4",url,width=1300,height=800,min_size=(850,600),js_api=KaraokeAPI())
  webview.start(debug=False)
  server.shutdown()
 if __name__=='__main__':main()

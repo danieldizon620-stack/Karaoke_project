@@ -1,4 +1,4 @@
-import json, shutil, os, sys, threading, socket, sqlite3, secrets, hmac, time, urllib.parse, webbrowser, mimetypes, re, zipfile, io, hashlib
+import urllib.request, json, shutil, os, sys, threading, socket, sqlite3, secrets, hmac, time, urllib.parse, webbrowser, mimetypes, re, zipfile, io, hashlib
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 import webview
@@ -18,6 +18,8 @@ def db():
  c.execute("PRAGMA journal_mode=WAL")
  c.execute("CREATE TABLE IF NOT EXISTS songs (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, video TEXT NOT NULL, singer TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'queued', created INTEGER NOT NULL)")
  c.execute("CREATE TABLE IF NOT EXISTS library (id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT NOT NULL UNIQUE, title TEXT NOT NULL, artist TEXT NOT NULL DEFAULT '', category TEXT NOT NULL DEFAULT 'Other', kind TEXT NOT NULL, mtime REAL NOT NULL, size INTEGER NOT NULL)")
+ c.execute("CREATE TABLE IF NOT EXISTS api_songs (code TEXT PRIMARY KEY, title TEXT NOT NULL, artist TEXT NOT NULL DEFAULT '', language TEXT NOT NULL DEFAULT '', youtube_id TEXT NOT NULL DEFAULT '')")
+ c.execute("CREATE TABLE IF NOT EXISTS api_queue (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT NOT NULL, title TEXT NOT NULL, artist TEXT NOT NULL DEFAULT '', youtube_id TEXT NOT NULL DEFAULT '', created INTEGER NOT NULL)")
  c.execute("CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT)")
  c.execute("INSERT OR IGNORE INTO settings VALUES ('song_folder',?)",(str(DEFAULT_SONGS),))
  c.commit()
@@ -115,6 +117,34 @@ class Handler(BaseHTTPRequestHandler):
   return self.client_address[0] in ('127.0.0.1','::1') and hmac.compare_digest(self.headers.get('X-Host-Token',''),TOKEN)
  def do_GET(self):
   path=urllib.parse.urlparse(self.path).path
+  if path=='/api/songs/search':
+   if not self.authorized():self.send(403,{'error':'Host only'});return
+   q=urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get('q',[''])[0][:120]
+   with db() as c:
+    like='%'+q.replace('%',r'\%').replace('_',r'\_')+'%'
+    rows=c.execute("SELECT code,title,artist,language,youtube_id FROM api_songs WHERE title LIKE ? ESCAPE '\' OR artist LIKE ? ESCAPE '\' OR code LIKE ? ESCAPE '\' OR language LIKE ? ESCAPE '\' ORDER BY title LIMIT 150",(like,like,like,like)).fetchall()
+   self.send(200,{'songs':[dict(zip(('code','title','artist','language','youtube_id'),r)) for r in rows]});return
+  if path.startswith('/api/songs/'):
+   if not self.authorized():self.send(403,{'error':'Host only'});return
+   code=urllib.parse.unquote(path[len('/api/songs/'):])
+   with db() as c:row=c.execute('SELECT code,title,artist,language,youtube_id FROM api_songs WHERE code=?',(code,)).fetchone()
+   self.send(200,dict(zip(('code','title','artist','language','youtube_id'),row))) if row else self.send(404,{'error':'Song not found'});return
+  if path=='/api/queue':
+   if not self.authorized():self.send(403,{'error':'Host only'});return
+   with db() as c:rows=c.execute('SELECT id,code,title,artist,youtube_id FROM api_queue ORDER BY id').fetchall()
+   self.send(200,{'queue':[dict(zip(('id','code','title','artist','youtube_id'),r)) for r in rows]});return
+  if path=='/api/youtube/search':
+   if not self.authorized():self.send(403,{'error':'Host only'});return
+   key=os.getenv('YOUTUBE_DATA_API_KEY','')
+   if not key:self.send(503,{'error':'Set YOUTUBE_DATA_API_KEY to enable YouTube Data API searches'});return
+   q=urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get('q',[''])[0][:120]
+   if not q:self.send(400,{'error':'Missing q'});return
+   url='https://www.googleapis.com/youtube/v3/search?'+urllib.parse.urlencode({'part':'snippet','type':'video','maxResults':15,'q':q,'key':key})
+   try:
+    with urllib.request.urlopen(url,timeout=10) as response:data=json.load(response)
+    self.send(200,{'results':[{'videoId':x.get('id',{}).get('videoId',''),'title':x.get('snippet',{}).get('title',''),'channel':x.get('snippet',{}).get('channelTitle','')} for x in data.get('items',[])]})
+   except Exception:self.send(502,{'error':'YouTube search unavailable; check API key, quota and connection'})
+   return
   if path=='/api/library':
    if not self.authorized():self.send(403,{'error':'Host only'});return
    q=urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get('q',[''])[0][:120]
@@ -166,7 +196,7 @@ class Handler(BaseHTTPRequestHandler):
   if path=='/':
    f=ASSETS/'index.html'
    self.send(200,f.read_bytes(),'text/html; charset=utf-8');return
-  if path in ('/app.js','/style.css','/menu.js','/logo.svg','/customize.js','/library.js','/online.js'):
+  if path in ('/app.js','/style.css','/menu.js','/logo.svg','/customize.js','/library.js','/online.js','/videoke_api.js'):
    f=ASSETS/path[1:]
    self.send(200,f.read_bytes(),'application/javascript' if path.endswith('.js') else ('image/svg+xml' if path.endswith('.svg') else ('application/json' if path.endswith('.json') else 'text/css')));return
   self.send(404,{'error':'Not found'})
@@ -174,6 +204,28 @@ class Handler(BaseHTTPRequestHandler):
   path=urllib.parse.urlparse(self.path).path
   d=self.getjson()
   if not isinstance(d,dict):self.send(400,{'error':'Invalid request'});return
+  if path=='/api/queue':
+   if not self.authorized():self.send(403,{'error':'Host only'});return
+   code=str(d.get('code',''))[:120]
+   if not code:self.send(400,{'error':'Song code required'});return
+   with db() as c:
+    row=c.execute('SELECT title,artist,youtube_id FROM api_songs WHERE code=?',(code,)).fetchone()
+    if not row:self.send(404,{'error':'Song code not found'});return
+    cur=c.execute('INSERT INTO api_queue(code,title,artist,youtube_id,created) VALUES (?,?,?,?,?)',(code,*row,int(time.time())))
+   self.send(201,{'id':cur.lastrowid,'code':code,'title':row[0]});return
+  if path=='/api/songs/import':
+   if not self.authorized():self.send(403,{'error':'Host only'});return
+   songs=d.get('songs',[])
+   if not isinstance(songs,list) or len(songs)>2000:self.send(400,{'error':'Provide songs array (maximum 2000)'});return
+   count=0
+   with db() as c:
+    for item in songs:
+     if not isinstance(item,dict):continue
+     code=str(item.get('code','')).strip()[:120];title=str(item.get('title','')).strip()[:250]
+     vid=str(item.get('youtube_id',item.get('youtubeId',''))).strip()
+     if not code or not title or (vid and not re.fullmatch(r'[A-Za-z0-9_-]{11}',vid)):continue
+     c.execute('INSERT OR REPLACE INTO api_songs(code,title,artist,language,youtube_id) VALUES (?,?,?,?,?)',(code,title,str(item.get('artist',''))[:200],str(item.get('language',''))[:80],vid));count+=1
+   self.send(200,{'imported':count});return
   if path=='/api/choose_folder':
    if not self.authorized():self.send(403,{'error':'Host only'});return
    folder=choose_folder()
@@ -186,6 +238,15 @@ class Handler(BaseHTTPRequestHandler):
   if path=='/api/scan':
    if not self.authorized():self.send(403,{'error':'Host only'});return
    self.send(200,scan_library());return
+  self.send(404,{'error':'Not found'})
+ def do_DELETE(self):
+  path=urllib.parse.urlparse(self.path).path
+  if not self.authorized():self.send(403,{'error':'Host only'});return
+  if path.startswith('/api/queue/'):
+   try:id_=int(path.rsplit('/',1)[1])
+   except ValueError:self.send(400,{'error':'Invalid queue id'});return
+   with db() as c:deleted=c.execute('DELETE FROM api_queue WHERE id=?',(id_,)).rowcount
+   self.send(200,{'removed':bool(deleted)}) if deleted else self.send(404,{'error':'Queue item not found'});return
   self.send(404,{'error':'Not found'})
 def localip():
  try:
@@ -208,7 +269,7 @@ def main():
  else:raise RuntimeError("Ports 8765-8767 are in use.")
  threading.Thread(target=server.serve_forever,daemon=True).start()
  url=f'http://127.0.0.1:{PORT}/'
- webview.create_window("dannyboi's Karaoke v2.6",url,width=1300,height=800,min_size=(850,600),js_api=KaraokeAPI())
+ webview.create_window("dannyboi's Karaoke v2.7",url,width=1300,height=800,min_size=(850,600),js_api=KaraokeAPI())
  webview.start(debug=False)
  server.shutdown()
 if __name__=='__main__':main()

@@ -101,6 +101,18 @@ def import_songs():
 def library_path(id_):
  with db() as c:row=c.execute('SELECT path,kind FROM library WHERE id=?',(id_,)).fetchone()
  return row
+def embeddable_search_results(search_data, key):
+ """Filter search results using YouTube Data API's official embeddable flag.
+ This cannot guarantee playback on a particular device or in a particular region.
+ """
+ items=[x for x in search_data.get('items',[]) if x.get('id',{}).get('videoId')]
+ ids=[x['id']['videoId'] for x in items]
+ if not ids:return []
+ url='https://www.googleapis.com/youtube/v3/videos?'+urllib.parse.urlencode({'part':'status','id':','.join(ids),'key':key})
+ with urllib.request.urlopen(url,timeout=12) as response:details=json.load(response)
+ allowed={x['id'] for x in details.get('items',[]) if x.get('status',{}).get('embeddable') is True and x.get('status',{}).get('privacyStatus')=='public'}
+ return [{'videoId':x['id']['videoId'],'title':x.get('snippet',{}).get('title',''),'channel':x.get('snippet',{}).get('channelTitle','')} for x in items if x['id']['videoId'] in allowed]
+
 class Handler(BaseHTTPRequestHandler):
  def log_message(self,*a):pass
  def send(self,status,data,ctype='application/json'):
@@ -126,10 +138,6 @@ class Handler(BaseHTTPRequestHandler):
   return hmac.compare_digest(self.headers.get('X-Remote-PIN',''),REMOTE_PIN)
  def do_GET(self):
   path=urllib.parse.urlparse(self.path).path
-  if path in ('/tv','/tv/'):
-   self.send(200,(ASSETS/'tv.html').read_bytes(),'text/html; charset=utf-8');return
-  if path=='/tv.js':
-   self.send(200,(ASSETS/'tv.js').read_bytes(),'application/javascript');return
   if path=='/remote/health':
    self.send(200,{'app':'dannyboi Karaoke','remote':True});return
   if path=='/api/remote/queue':
@@ -152,10 +160,10 @@ class Handler(BaseHTTPRequestHandler):
     key=row[0] if row else ''
    if not key:key=DEFAULT_YOUTUBE_API_KEY
    if not key:self.send(503,{'error':'Configure YouTube API on Windows first'});return
-   url='https://www.googleapis.com/youtube/v3/search?'+urllib.parse.urlencode({'part':'snippet','type':'video','maxResults':12,'q':q+' karaoke','key':key})
+   url='https://www.googleapis.com/youtube/v3/search?'+urllib.parse.urlencode({'part':'snippet','type':'video','videoEmbeddable':'true','maxResults':12,'q':q+' karaoke','key':key})
    try:
     with urllib.request.urlopen(url,timeout=12) as response:data=json.load(response)
-    self.send(200,{'results':[{'videoId':x.get('id',{}).get('videoId',''),'title':x.get('snippet',{}).get('title',''),'channel':x.get('snippet',{}).get('channelTitle','')} for x in data.get('items',[])]})
+    self.send(200,{'results':embeddable_search_results(data,key)})
    except Exception:self.send(502,{'error':'YouTube search failed: check API key, quota and internet'})
    return
   if path=='/api/songs/search':
@@ -189,10 +197,10 @@ class Handler(BaseHTTPRequestHandler):
    if not key:self.send(503,{'error':'YouTube API key is not configured. Enter it when prompted.'});return
    q=urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query).get('q',[''])[0][:120]
    if not q:self.send(400,{'error':'Missing q'});return
-   url='https://www.googleapis.com/youtube/v3/search?'+urllib.parse.urlencode({'part':'snippet','type':'video','maxResults':15,'q':q,'key':key})
+   url='https://www.googleapis.com/youtube/v3/search?'+urllib.parse.urlencode({'part':'snippet','type':'video','videoEmbeddable':'true','maxResults':15,'q':q,'key':key})
    try:
     with urllib.request.urlopen(url,timeout=10) as response:data=json.load(response)
-    self.send(200,{'results':[{'videoId':x.get('id',{}).get('videoId',''),'title':x.get('snippet',{}).get('title',''),'channel':x.get('snippet',{}).get('channelTitle','')} for x in data.get('items',[])]})
+    self.send(200,{'results':embeddable_search_results(data,key)})
    except Exception:self.send(502,{'error':'YouTube search unavailable; check API key, quota and connection'})
    return
   if path=='/api/library':

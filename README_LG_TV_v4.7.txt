@@ -1,0 +1,1 @@
+dannyboi Karaoke LG webOS TV companion. Install the .ipk on LG webOS 5 TV using LG Developer Mode. Run this updated Windows host first; the TV app opens http://<PC-IP>:8877/tv and uses the same pairing PIN. Videos may be restricted by YouTube and autoplay policies. Roulette scoring is entertainment only.

@@ -1,0 +1,1 @@
+v4.4 Android remote: connect-first interface, Wi-Fi host discovery, YouTube thumbnail previews, queue controls. Scanning probes the local /24 IPv4 subnet on port 8877; both devices must share Wi-Fi and Windows Firewall must allow TCP 8877. Requires current six-digit PIN. Android APK is built via GitHub Actions, not included.

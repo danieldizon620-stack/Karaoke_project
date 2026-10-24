@@ -126,6 +126,10 @@ class Handler(BaseHTTPRequestHandler):
   return hmac.compare_digest(self.headers.get('X-Remote-PIN',''),REMOTE_PIN)
  def do_GET(self):
   path=urllib.parse.urlparse(self.path).path
+  if path in ('/tv','/tv/'):
+   self.send(200,(ASSETS/'tv.html').read_bytes(),'text/html; charset=utf-8');return
+  if path=='/tv.js':
+   self.send(200,(ASSETS/'tv.js').read_bytes(),'application/javascript');return
   if path=='/remote/health':
    self.send(200,{'app':'dannyboi Karaoke','remote':True});return
   if path=='/api/remote/queue':
